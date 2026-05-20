@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Inventory Management</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #f0f2f5;
+      color: #1a1b1f;
+      min-height: 100vh;
+    }
+
+    /* ── Header ─────────────────────────────────────── */
+    header {
+      background: #1e3a5f;
+      color: #fff;
+      padding: 18px 32px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.25);
+    }
+    header svg { flex-shrink: 0; }
+    header h1 { font-size: 1.35rem; font-weight: 600; letter-spacing: .02em; }
+    header span { font-size: .85rem; opacity: .7; margin-left: auto; }
+
+    /* ── Main grid ───────────────────────────────────── */
+    main {
+      max-width: 1200px;
+      margin: 32px auto;
+      padding: 0 24px 48px;
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      grid-template-rows: auto auto;
+      gap: 24px;
+    }
+
+    /* ── Cards ───────────────────────────────────────── */
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.06);
+      padding: 28px;
+    }
+    .card-title {
+      font-size: .8rem;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: #1e3a5f;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid #e8edf3;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* ── Form ────────────────────────────────────────── */
+    .form-group { margin-bottom: 18px; }
+    label {
+      display: block;
+      font-size: .8rem;
+      font-weight: 600;
+      color: #4a5568;
+      margin-bottom: 6px;
+      letter-spacing: .03em;
+    }
+    label .req { color: #e53e3e; margin-left: 2px; }
+    input[type="text"], input[type="number"], input[type="date"] {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1.5px solid #d1d9e6;
+      border-radius: 8px;
+      font-size: .95rem;
+      color: #1a1b1f;
+      background: #fafbfc;
+      transition: border-color .2s, box-shadow .2s;
+      outline: none;
+    }
+    input:focus {
+      border-color: #1e3a5f;
+      box-shadow: 0 0 0 3px rgba(30,58,95,.12);
+      background: #fff;
+    }
+    input.error { border-color: #e53e3e; }
+    .field-error { color: #e53e3e; font-size: .75rem; margin-top: 4px; display: none; }
+    .field-error.show { display: block; }
+
+    .hint { font-size: .75rem; color: #718096; margin-top: 4px; }
+
+    .btn-submit {
+      width: 100%;
+      padding: 12px;
+      background: #1e3a5f;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: .95rem;
+      font-weight: 600;
+      cursor: pointer;
+      letter-spacing: .03em;
+      transition: background .2s, transform .1s;
+      margin-top: 8px;
+    }
+    .btn-submit:hover { background: #2a5298; }
+    .btn-submit:active { transform: scale(.98); }
+
+    /* Toast */
+    #toast {
+      position: fixed;
+      bottom: 28px;
+      right: 28px;
+      background: #22543d;
+      color: #fff;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: .9rem;
+      font-weight: 500;
+      box-shadow: 0 4px 16px rgba(0,0,0,.2);
+      opacity: 0;
+      transform: translateY(12px);
+      transition: opacity .3s, transform .3s;
+      pointer-events: none;
+      z-index: 100;
+    }
+    #toast.show { opacity: 1; transform: translateY(0); }
+
+    /* ── Stats row ───────────────────────────────────── */
+    .stats-row {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+    .stat-card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.08);
+      padding: 20px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .stat-label { font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #718096; }
+    .stat-value { font-size: 2rem; font-weight: 700; color: #1e3a5f; line-height: 1; }
+    .stat-sub { font-size: .78rem; color: #a0aec0; }
+
+    /* ── Stock table ─────────────────────────────────── */
+    .stock-card { grid-column: 1 / -1; }
+
+    .table-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .table-toolbar input[type="text"] {
+      width: 220px;
+      padding: 8px 12px;
+      font-size: .85rem;
+    }
+    .table-toolbar .spacer { flex: 1; }
+    .badge {
+      background: #ebf4ff;
+      color: #1e3a5f;
+      border-radius: 20px;
+      padding: 3px 10px;
+      font-size: .75rem;
+      font-weight: 600;
+    }
+
+    .tbl-wrap { overflow-x: auto; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .88rem;
+    }
+    thead th {
+      background: #f7f9fc;
+      padding: 10px 14px;
+      text-align: left;
+      font-size: .75rem;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: #4a5568;
+      border-bottom: 2px solid #e8edf3;
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+    }
+    thead th:hover { color: #1e3a5f; }
+    thead th .sort-icon { margin-left: 4px; opacity: .4; }
+    thead th.sorted .sort-icon { opacity: 1; }
+
+    tbody tr { border-bottom: 1px solid #f0f2f5; transition: background .15s; }
+    tbody tr:hover { background: #f7f9fc; }
+    tbody td { padding: 12px 14px; vertical-align: middle; }
+
+    .serial-cell { font-family: 'Courier New', monospace; font-weight: 600; color: #1e3a5f; font-size: .85rem; }
+    .qty-badge {
+      display: inline-block;
+      background: #ebf4ff;
+      color: #1e3a5f;
+      border-radius: 6px;
+      padding: 2px 10px;
+      font-weight: 700;
+      font-size: .85rem;
+    }
+    .qty-badge.high { background: #f0fff4; color: #22543d; }
+    .qty-badge.low  { background: #fff5f5; color: #9b2c2c; }
+
+    .date-cell { color: #718096; font-size: .82rem; }
+
+    .tag-new {
+      display: inline-block;
+      background: #fef9c3;
+      color: #7c5c00;
+      border-radius: 4px;
+      padding: 1px 7px;
+      font-size: .7rem;
+      font-weight: 700;
+      margin-left: 6px;
+      vertical-align: middle;
+    }
+
+    .btn-delete {
+      background: none;
+      border: none;
+      color: #cbd5e0;
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 4px;
+      transition: color .15s, background .15s;
+      font-size: 1rem;
+      line-height: 1;
+    }
+    .btn-delete:hover { color: #e53e3e; background: #fff5f5; }
+
+    .empty-state {
+      text-align: center;
+      padding: 48px 0;
+      color: #a0aec0;
+    }
+    .empty-state svg { display: block; margin: 0 auto 12px; }
+    .empty-state p { font-size: .9rem; }
+
+    /* ── Request history panel ───────────────────────── */
+    .history-card { overflow: hidden; }
+    .history-list { max-height: 420px; overflow-y: auto; }
+    .history-item {
+      display: flex;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid #f0f2f5;
+      align-items: flex-start;
+    }
+    .history-item:last-child { border-bottom: none; }
+    .h-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #1e3a5f;
+      margin-top: 6px;
+      flex-shrink: 0;
+    }
+    .h-serial { font-family: 'Courier New', monospace; font-size: .82rem; font-weight: 700; color: #1e3a5f; }
+    .h-qty { font-size: .8rem; color: #4a5568; }
+    .h-date { font-size: .72rem; color: #a0aec0; margin-top: 2px; }
+    .h-empty { text-align: center; padding: 32px 0; color: #a0aec0; font-size: .85rem; }
+
+    /* ── Responsive ──────────────────────────────────── */
+    @media (max-width: 800px) {
+      main { grid-template-columns: 1fr; }
+      .stats-row { grid-template-columns: 1fr 1fr; }
+      .stock-card { grid-column: 1; }
+    }
+    @media (max-width: 500px) {
+      .stats-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="2" y="3" width="20" height="5" rx="1"/><rect x="2" y="10" width="20" height="5" rx="1"/><rect x="2" y="17" width="20" height="5" rx="1"/>
+    <line x1="6" y1="5.5" x2="6.01" y2="5.5"/><line x1="6" y1="12.5" x2="6.01" y2="12.5"/><line x1="6" y1="19.5" x2="6.01" y2="19.5"/>
+  </svg>
+  <h1>Inventory Management</h1>
+  <span id="headerDate"></span>
+</header>
+
+<main>
+
+  <!-- Stats row -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-label">Total SKUs</div>
+      <div class="stat-value" id="statSkus">0</div>
+      <div class="stat-sub">unique serial numbers</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Total Units</div>
+      <div class="stat-value" id="statUnits">0</div>
+      <div class="stat-sub">across all items</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Total Requests</div>
+      <div class="stat-value" id="statRequests">0</div>
+      <div class="stat-sub">internal requests submitted</div>
+    </div>
+  </div>
+
+  <!-- New Internal Request form -->
+  <div class="card">
+    <div class="card-title">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+      New Internal Request
+    </div>
+
+    <form id="requestForm" novalidate>
+      <div class="form-group">
+        <label>Stock Serial Number <span class="req">*</span></label>
+        <input type="text" id="serialInput" placeholder="e.g. SKU-20240001" autocomplete="off" />
+        <div class="field-error" id="serialError">Serial number is required.</div>
+        <div class="hint">Unique identifier for the stock item.</div>
+      </div>
+
+      <div class="form-group">
+        <label>Quantity <span class="req">*</span></label>
+        <input type="number" id="qtyInput" placeholder="Enter quantity" min="1" step="1" />
+        <div class="field-error" id="qtyError">Please enter a valid quantity (min 1).</div>
+      </div>
+
+      <div class="form-group">
+        <label>Date <span class="req">*</span></label>
+        <input type="date" id="dateInput" />
+        <div class="field-error" id="dateError">Date is required.</div>
+      </div>
+
+      <button type="submit" class="btn-submit">Submit Request &amp; Record Stock</button>
+    </form>
+  </div>
+
+  <!-- Request history -->
+  <div class="card history-card">
+    <div class="card-title">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="12 8 12 12 14 14"/><path d="M3.05 11a9 9 0 1 0 .5-4"/><polyline points="3 3 3 8 8 8"/></svg>
+      Request History
+    </div>
+    <div class="history-list" id="historyList">
+      <div class="h-empty">No requests yet.</div>
+    </div>
+  </div>
+
+  <!-- Stock Inventory table -->
+  <div class="card stock-card">
+    <div class="card-title">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 3H8a2 2 0 0 0-2 2v2h12V5a2 2 0 0 0-2-2z"/></svg>
+      Stock Inventory
+    </div>
+
+    <div class="table-toolbar">
+      <input type="text" id="searchInput" placeholder="Search by serial number…" />
+      <div class="spacer"></div>
+      <span class="badge" id="tableCount">0 items</span>
+    </div>
+
+    <div class="tbl-wrap">
+      <table id="stockTable">
+        <thead>
+          <tr>
+            <th data-col="serial" class="sorted">Serial Number <span class="sort-icon">▲</span></th>
+            <th data-col="qty">Total Quantity <span class="sort-icon">↕</span></th>
+            <th data-col="requests">Requests <span class="sort-icon">↕</span></th>
+            <th data-col="lastDate">Last Updated <span class="sort-icon">↕</span></th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="stockBody">
+          <tr><td colspan="5"><div class="empty-state">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#cbd5e0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 3H8a2 2 0 0 0-2 2v2h12V5a2 2 0 0 0-2-2z"/></svg>
+            <p>No stock recorded yet. Submit an internal request to get started.</p>
+          </div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<div id="toast"></div>
+
+<script>
+  // ── State ───────────────────────────────────────────
+  const STORAGE_REQUESTS = 'inv_requests_v1';
+  const STORAGE_STOCK    = 'inv_stock_v1';
+
+  let requests = JSON.parse(localStorage.getItem(STORAGE_REQUESTS) || '[]');
+  let stock    = JSON.parse(localStorage.getItem(STORAGE_STOCK)    || '{}');
+  // stock: { [serial]: { qty: number, requestCount: number, lastDate: string, isNew: bool } }
+
+  let sortCol = 'serial';
+  let sortDir = 1; // 1=asc, -1=desc
+  let searchQuery = '';
+  let newlyAdded  = null; // serial highlighted as new
+
+  // ── Init ────────────────────────────────────────────
+  document.getElementById('headerDate').textContent = new Date().toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+  document.getElementById('dateInput').value = today();
+
+  render();
+
+  // ── Form ────────────────────────────────────────────
+  document.getElementById('requestForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    if (!validate()) return;
+
+    const serial = document.getElementById('serialInput').value.trim().toUpperCase();
+    const qty    = parseInt(document.getElementById('qtyInput').value, 10);
+    const date   = document.getElementById('dateInput').value;
+
+    // Record request
+    const req = { id: Date.now(), serial, qty, date, createdAt: new Date().toISOString() };
+    requests.unshift(req);
+    localStorage.setItem(STORAGE_REQUESTS, JSON.stringify(requests));
+
+    // Update stock
+    if (!stock[serial]) {
+      stock[serial] = { qty: 0, requestCount: 0, lastDate: date };
+    }
+    stock[serial].qty          += qty;
+    stock[serial].requestCount += 1;
+    stock[serial].lastDate      = date;
+    localStorage.setItem(STORAGE_STOCK, JSON.stringify(stock));
+
+    newlyAdded = serial;
+    setTimeout(() => { newlyAdded = null; render(); }, 3000);
+
+    showToast(`Stock updated — ${serial} (+${qty} units)`);
+    this.reset();
+    document.getElementById('dateInput').value = today();
+    render();
+  });
+
+  // ── Validate ─────────────────────────────────────────
+  function validate() {
+    let ok = true;
+    const serial = document.getElementById('serialInput').value.trim();
+    const qty    = document.getElementById('qtyInput').value;
+    const date   = document.getElementById('dateInput').value;
+
+    setError('serialInput', 'serialError', !serial);
+    setError('qtyInput', 'qtyError', !qty || parseInt(qty,10) < 1);
+    setError('dateInput', 'dateError', !date);
+
+    return !(!serial || !qty || parseInt(qty,10) < 1 || !date);
+  }
+
+  function setError(inputId, errId, isErr) {
+    document.getElementById(inputId).classList.toggle('error', isErr);
+    document.getElementById(errId).classList.toggle('show', isErr);
+  }
+
+  // ── Render ───────────────────────────────────────────
+  function render() {
+    renderStats();
+    renderHistory();
+    renderTable();
+  }
+
+  function renderStats() {
+    const skus  = Object.keys(stock).length;
+    const units = Object.values(stock).reduce((s, v) => s + v.qty, 0);
+    document.getElementById('statSkus').textContent     = skus;
+    document.getElementById('statUnits').textContent    = units;
+    document.getElementById('statRequests').textContent = requests.length;
+  }
+
+  function renderHistory() {
+    const el = document.getElementById('historyList');
+    if (!requests.length) { el.innerHTML = '<div class="h-empty">No requests yet.</div>'; return; }
+    el.innerHTML = requests.slice(0, 50).map(r => `
+      <div class="history-item">
+        <div class="h-dot"></div>
+        <div>
+          <div class="h-serial">${esc(r.serial)}</div>
+          <div class="h-qty">Qty: <strong>${r.qty}</strong></div>
+          <div class="h-date">${formatDate(r.date)} &nbsp;·&nbsp; ${timeAgo(r.createdAt)}</div>
+        </div>
+      </div>`).join('');
+  }
+
+  function renderTable() {
+    const body    = document.getElementById('stockBody');
+    const entries = Object.entries(stock)
+      .map(([serial, data]) => ({ serial, ...data }))
+      .filter(row => !searchQuery || row.serial.includes(searchQuery.toUpperCase()));
+
+    document.getElementById('tableCount').textContent = `${entries.length} item${entries.length !== 1 ? 's' : ''}`;
+
+    if (!entries.length) {
+      const msg = searchQuery
+        ? 'No items match your search.'
+        : 'No stock recorded yet. Submit an internal request to get started.';
+      body.innerHTML = `<tr><td colspan="5"><div class="empty-state">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#cbd5e0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 3H8a2 2 0 0 0-2 2v2h12V5a2 2 0 0 0-2-2z"/></svg>
+        <p>${msg}</p></div></td></tr>`;
+      return;
+    }
+
+    // Sort
+    entries.sort((a, b) => {
+      let va = a[sortCol], vb = b[sortCol];
+      if (sortCol === 'qty' || sortCol === 'requests') { va = +va; vb = +vb; }
+      if (sortCol === 'lastDate') { va = va || ''; vb = vb || ''; }
+      if (va < vb) return -sortDir;
+      if (va > vb) return  sortDir;
+      return 0;
+    });
+
+    body.innerHTML = entries.map(row => {
+      const qtyClass = row.qty >= 100 ? 'high' : row.qty <= 10 ? 'low' : '';
+      const isNew    = row.serial === newlyAdded;
+      return `
+        <tr>
+          <td class="serial-cell">${esc(row.serial)}${isNew ? '<span class="tag-new">NEW</span>' : ''}</td>
+          <td><span class="qty-badge ${qtyClass}">${row.qty}</span></td>
+          <td class="date-cell" style="color:#4a5568">${row.requestCount}</td>
+          <td class="date-cell">${formatDate(row.lastDate)}</td>
+          <td><button class="btn-delete" title="Delete stock entry" onclick="deleteStock('${esc(row.serial)}')">✕</button></td>
+        </tr>`;
+    }).join('');
+  }
+
+  // ── Sort & search ────────────────────────────────────
+  document.querySelectorAll('thead th[data-col]').forEach(th => {
+    th.addEventListener('click', () => {
+      const col = th.dataset.col;
+      if (sortCol === col) { sortDir *= -1; }
+      else { sortCol = col; sortDir = 1; }
+
+      document.querySelectorAll('thead th').forEach(t => {
+        t.classList.remove('sorted');
+        const icon = t.querySelector('.sort-icon');
+        if (icon) icon.textContent = '↕';
+      });
+      th.classList.add('sorted');
+      th.querySelector('.sort-icon').textContent = sortDir === 1 ? '▲' : '▼';
+      renderTable();
+    });
+  });
+
+  document.getElementById('searchInput').addEventListener('input', function() {
+    searchQuery = this.value.trim();
+    renderTable();
+  });
+
+  // ── Delete stock entry ───────────────────────────────
+  function deleteStock(serial) {
+    if (!confirm(`Delete stock entry for "${serial}"?\n\nThis will remove it from inventory (request history is kept).`)) return;
+    delete stock[serial];
+    localStorage.setItem(STORAGE_STOCK, JSON.stringify(stock));
+    render();
+    showToast(`${serial} removed from inventory.`);
+  }
+
+  // ── Toast ────────────────────────────────────────────
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3200);
+  }
+
+  // ── Helpers ──────────────────────────────────────────
+  function today() {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  function formatDate(d) {
+    if (!d) return '—';
+    const [y, m, day] = d.split('-');
+    return `${day}/${m}/${y}`;
+  }
+
+  function timeAgo(iso) {
+    const diff = (Date.now() - new Date(iso)) / 1000;
+    if (diff < 60)   return 'just now';
+    if (diff < 3600) return `${Math.floor(diff/60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff/3600)}h ago`;
+    return `${Math.floor(diff/86400)}d ago`;
+  }
+
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+</script>
+</body>
+</html>
