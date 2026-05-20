@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Inventory — Stock</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f0f2f5; color: #1a1b1f; min-height: 100vh; }
+
+    header { background: #1e3a5f; color: #fff; padding: 0 32px; display: flex; align-items: stretch; gap: 16px; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
+    .header-brand { display: flex; align-items: center; gap: 12px; padding: 16px 0; }
+    header h1 { font-size: 1.2rem; font-weight: 600; letter-spacing: .02em; }
+    nav { display: flex; align-items: stretch; margin-left: auto; }
+    nav a { display: flex; align-items: center; padding: 0 20px; font-size: .83rem; font-weight: 600; color: rgba(255,255,255,.65); text-decoration: none; letter-spacing: .03em; border-bottom: 3px solid transparent; transition: color .15s, border-color .15s; }
+    nav a:hover { color: #fff; }
+    nav a.active { color: #fff; border-bottom-color: #63b3ed; }
+
+    main { max-width: 1280px; margin: 28px auto; padding: 0 24px 56px; display: grid; grid-template-columns: 300px 1fr; gap: 20px; }
+    .full { grid-column: 1 / -1; }
+
+    .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .stat-card { background: #fff; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 18px 20px; display: flex; flex-direction: column; gap: 4px; border-top: 3px solid transparent; }
+    .stat-card.s-blue  { border-color: #1e3a5f; }
+    .stat-card.s-green { border-color: #276749; }
+    .stat-card.s-red   { border-color: #9b2c2c; }
+    .stat-label { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #718096; }
+    .stat-value { font-size: 1.9rem; font-weight: 700; color: #1e3a5f; line-height: 1.1; }
+    .stat-sub   { font-size: .75rem; color: #a0aec0; }
+
+    .card { background: #fff; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.05); padding: 24px; }
+    .card-title { font-size: .75rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: #1e3a5f; margin-bottom: 18px; padding-bottom: 12px; border-bottom: 2px solid #e8edf3; display: flex; align-items: center; gap: 8px; }
+
+    .form-group { margin-bottom: 14px; }
+    label { display: block; font-size: .78rem; font-weight: 600; color: #4a5568; margin-bottom: 5px; letter-spacing: .03em; }
+    label .req { color: #e53e3e; margin-left: 2px; }
+    input[type="text"], input[type="number"], input[type="date"] { width: 100%; padding: 9px 13px; border: 1.5px solid #d1d9e6; border-radius: 8px; font-size: .92rem; color: #1a1b1f; background: #fafbfc; transition: border-color .18s, box-shadow .18s; outline: none; }
+    input:focus { border-color: #1e3a5f; box-shadow: 0 0 0 3px rgba(30,58,95,.11); background: #fff; }
+    input.err   { border-color: #e53e3e; }
+    .ferr { color: #e53e3e; font-size: .73rem; margin-top: 3px; display: none; }
+    .ferr.show  { display: block; }
+
+    .type-toggle { display: flex; border-radius: 8px; overflow: hidden; border: 1.5px solid #d1d9e6; margin-bottom: 16px; }
+    .toggle-btn { flex: 1; padding: 9px; font-size: .85rem; font-weight: 600; border: none; background: #f7f9fc; color: #718096; cursor: pointer; transition: background .15s, color .15s; }
+    .toggle-btn.active-in  { background: #f0fff4; color: #276749; }
+    .toggle-btn.active-out { background: #fff5f5; color: #9b2c2c; }
+
+    .btn-primary { width: 100%; padding: 11px; border: none; border-radius: 8px; font-size: .92rem; font-weight: 600; cursor: pointer; transition: background .18s, transform .1s; margin-top: 6px; background: #276749; color: #fff; }
+    .btn-primary:hover  { background: #22543d; }
+    .btn-primary:active { transform: scale(.98); }
+    .btn-primary.red    { background: #9b2c2c; }
+    .btn-primary.red:hover { background: #7b2323; }
+
+    .table-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+    .table-toolbar input { width: 100%; max-width: 280px; padding: 8px 12px; font-size: .83rem; }
+    .tb-spacer { flex: 1; }
+    .badge { background: #ebf4ff; color: #1e3a5f; border-radius: 20px; padding: 3px 10px; font-size: .73rem; font-weight: 600; }
+    .tbl-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: .86rem; }
+    thead th { background: #f7f9fc; padding: 9px 13px; text-align: left; font-size: .72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #4a5568; border-bottom: 2px solid #e8edf3; white-space: nowrap; cursor: pointer; user-select: none; }
+    thead th:hover { color: #1e3a5f; }
+    thead th .si { margin-left: 4px; opacity: .4; }
+    thead th.sorted .si { opacity: 1; }
+    tbody tr { border-bottom: 1px solid #f0f2f5; transition: background .12s; }
+    tbody tr:hover { background: #f7f9fc; }
+    tbody td { padding: 11px 13px; vertical-align: middle; }
+
+    /* Clickable serial number */
+    .serial-link { font-family: 'Courier New', monospace; font-weight: 700; color: #1e3a5f; font-size: .84rem; cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
+    .serial-link:hover { color: #2a5298; }
+
+    .qty-pill { display: inline-block; border-radius: 6px; padding: 2px 10px; font-weight: 700; font-size: .84rem; background: #ebf4ff; color: #1e3a5f; }
+    .qty-pill.high { background: #f0fff4; color: #22543d; }
+    .qty-pill.low  { background: #fff5f5; color: #9b2c2c; }
+    .qty-pill.zero { background: #f7f9fc; color: #a0aec0; }
+
+    .btn-del { background: none; border: none; color: #cbd5e0; cursor: pointer; padding: 4px 6px; border-radius: 4px; transition: color .13s, background .13s; font-size: .9rem; line-height: 1; }
+    .btn-del:hover { color: #e53e3e; background: #fff5f5; }
+
+    .empty-state { text-align: center; padding: 40px 0; color: #a0aec0; }
+    .empty-state svg { display: block; margin: 0 auto 10px; }
+    .empty-state p { font-size: .87rem; }
+
+    /* ── History Panel (slide-in from right) ── */
+    .panel-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.3); z-index: 300; opacity: 0; pointer-events: none; transition: opacity .25s; }
+    .panel-overlay.open { opacity: 1; pointer-events: all; }
+
+    .history-panel { position: fixed; top: 0; right: 0; bottom: 0; width: 420px; max-width: 95vw; background: #fff; z-index: 301; box-shadow: -4px 0 24px rgba(0,0,0,.15); display: flex; flex-direction: column; transform: translateX(100%); transition: transform .28s cubic-bezier(.4,0,.2,1); }
+    .history-panel.open { transform: translateX(0); }
+
+    .panel-header { background: #1e3a5f; color: #fff; padding: 20px 24px; display: flex; align-items: flex-start; gap: 12px; flex-shrink: 0; }
+    .panel-serial { font-family: 'Courier New', monospace; font-size: 1.1rem; font-weight: 700; }
+    .panel-qty { font-size: .82rem; opacity: .75; margin-top: 2px; }
+    .panel-close { margin-left: auto; background: rgba(255,255,255,.15); border: none; color: #fff; width: 30px; height: 30px; border-radius: 6px; cursor: pointer; font-size: 1.1rem; line-height: 1; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background .15s; }
+    .panel-close:hover { background: rgba(255,255,255,.3); }
+
+    .panel-body { flex: 1; overflow-y: auto; padding: 20px 24px; }
+    .panel-section-title { font-size: .72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #718096; margin-bottom: 12px; }
+
+    .mov-item { display: flex; align-items: flex-start; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f0f2f5; }
+    .mov-item:last-child { border-bottom: none; }
+    .mov-icon { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: .75rem; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+    .mov-icon.in  { background: #f0fff4; color: #276749; }
+    .mov-icon.out { background: #fff5f5; color: #9b2c2c; }
+    .mov-detail { flex: 1; }
+    .mov-type { font-size: .82rem; font-weight: 700; }
+    .mov-type.in  { color: #276749; }
+    .mov-type.out { color: #9b2c2c; }
+    .mov-meta { font-size: .76rem; color: #718096; margin-top: 2px; }
+    .mov-qty  { font-size: .88rem; font-weight: 700; color: #1a1b1f; white-space: nowrap; margin-left: auto; padding-left: 8px; }
+
+    .panel-empty { text-align: center; padding: 32px 0; color: #a0aec0; font-size: .85rem; }
+
+    /* Toast */
+    #toast { position: fixed; bottom: 24px; right: 24px; background: #1e3a5f; color: #fff; padding: 11px 18px; border-radius: 8px; font-size: .88rem; font-weight: 500; box-shadow: 0 4px 16px rgba(0,0,0,.2); opacity: 0; transform: translateY(10px); transition: opacity .28s, transform .28s; pointer-events: none; z-index: 400; }
+    #toast.show { opacity: 1; transform: translateY(0); }
+
+    @media (max-width: 860px) { main { grid-template-columns: 1fr; } .stats-grid { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 480px) { .stats-grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-brand">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="2" y="3" width="20" height="5" rx="1"/><rect x="2" y="10" width="20" height="5" rx="1"/><rect x="2" y="17" width="20" height="5" rx="1"/>
+      <line x1="6" y1="5.5" x2="6.01" y2="5.5"/><line x1="6" y1="12.5" x2="6.01" y2="12.5"/><line x1="6" y1="19.5" x2="6.01" y2="19.5"/>
+    </svg>
+    <h1>Inventory Management</h1>
+  </div>
+  <nav>
+    <a href="inventory.html">Internal Requests</a>
+    <a href="inventory-stock.html" class="active">Stock Inventory</a>
+  </nav>
+</header>
+
+<main>
+  <div class="full stats-grid">
+    <div class="stat-card s-blue">
+      <div class="stat-label">Total SKUs</div>
+      <div class="stat-value" id="statSkus">0</div>
+      <div class="stat-sub">unique serial numbers</div>
+    </div>
+    <div class="stat-card s-green">
+      <div class="stat-label">Units in Stock</div>
+      <div class="stat-value" id="statUnits">0</div>
+      <div class="stat-sub">across all items</div>
+    </div>
+    <div class="stat-card s-red">
+      <div class="stat-label">Low Stock Items</div>
+      <div class="stat-value" id="statLow">0</div>
+      <div class="stat-sub">10 units or fewer</div>
+    </div>
+  </div>
+
+  <!-- Stock Movement Form -->
+  <div class="card">
+    <div class="card-title">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+      Stock Movement
+    </div>
+    <div class="type-toggle" id="movToggle">
+      <button class="toggle-btn active-in" data-t="in">&#8679; Stock In</button>
+      <button class="toggle-btn" data-t="out">&#8681; Stock Out</button>
+    </div>
+    <form id="movForm" novalidate>
+      <div class="form-group">
+        <label>Stock Serial Number <span class="req">*</span></label>
+        <input type="text" id="movSerial" placeholder="e.g. SKU-A001" autocomplete="off" />
+        <div class="ferr" id="movSerialErr">Serial number is required.</div>
+        <div class="ferr" id="movStockErr">Insufficient stock.</div>
+      </div>
+      <div class="form-group">
+        <label>Quantity <span class="req">*</span></label>
+        <input type="number" id="movQty" placeholder="Enter quantity" min="1" step="1" />
+        <div class="ferr" id="movQtyErr">Please enter a valid quantity (min 1).</div>
+      </div>
+      <div class="form-group">
+        <label>Date <span class="req">*</span></label>
+        <input type="date" id="movDate" />
+        <div class="ferr" id="movDateErr">Date is required.</div>
+      </div>
+      <button type="submit" class="btn-primary" id="movBtn">Record Stock In</button>
+    </form>
+  </div>
+
+  <!-- Stock Inventory Table -->
+  <div class="card">
+    <div class="card-title">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 3H8a2 2 0 0 0-2 2v2h12V5a2 2 0 0 0-2-2z"/></svg>
+      Stock Inventory
+      <span style="font-size:.7rem;font-weight:400;color:#a0aec0;text-transform:none;letter-spacing:0;margin-left:4px;">— click a serial number to view history</span>
+    </div>
+    <div class="table-toolbar">
+      <input type="text" id="stockSearch" placeholder="Search by serial number…" />
+      <div class="tb-spacer"></div>
+      <span class="badge" id="stockCount">0 items</span>
+    </div>
+    <div class="tbl-wrap">
+      <table id="stockTable">
+        <thead>
+          <tr>
+            <th data-col="serial" class="sorted">Serial Number <span class="si">▲</span></th>
+            <th data-col="qty">Qty in Stock <span class="si">↕</span></th>
+            <th data-col="lastIn">Last Stock In <span class="si">↕</span></th>
+            <th data-col="lastOut">Last Stock Out <span class="si">↕</span></th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="stockBody"></tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<!-- History panel -->
+<div class="panel-overlay" id="overlay" onclick="closePanel()"></div>
+<div class="history-panel" id="histPanel">
+  <div class="panel-header">
+    <div>
+      <div class="panel-serial" id="panelSerial">—</div>
+      <div class="panel-qty"   id="panelQty">—</div>
+    </div>
+    <button class="panel-close" onclick="closePanel()">&#x2715;</button>
+  </div>
+  <div class="panel-body">
+    <div class="panel-section-title">Stock Movement History</div>
+    <div id="panelHistory"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+  const K = { stock: 'inv_stock_v2', movements: 'inv_movements_v1' };
+
+  let stock     = JSON.parse(localStorage.getItem(K.stock)     || 'null');
+  let movements = JSON.parse(localStorage.getItem(K.movements) || '[]');
+
+  if (!stock) {
+    const old = JSON.parse(localStorage.getItem('inv_stock_v1') || '{}');
+    stock = {};
+    Object.entries(old).forEach(([s, d]) => { stock[s] = { qty: d.qty, lastIn: d.lastDate || null, lastOut: null }; });
+    localStorage.setItem(K.stock, JSON.stringify(stock));
+  }
+
+  let movType   = 'in';
+  let stockSort = { col: 'serial', dir: 1 };
+  let stockQ    = '';
+
+  document.getElementById('movDate').value = today();
+  render();
+
+  // Toggle
+  document.getElementById('movToggle').addEventListener('click', function(e) {
+    const btn = e.target.closest('[data-t]');
+    if (!btn) return;
+    movType = btn.dataset.t;
+    this.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active-in','active-out'));
+    btn.classList.add(movType === 'in' ? 'active-in' : 'active-out');
+    const mb = document.getElementById('movBtn');
+    mb.textContent = movType === 'in' ? 'Record Stock In' : 'Record Stock Out';
+    mb.className   = 'btn-primary' + (movType === 'out' ? ' red' : '');
+  });
+
+  // Movement form
+  document.getElementById('movForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const serial = document.getElementById('movSerial').value.trim().toUpperCase();
+    const qty    = parseInt(document.getElementById('movQty').value, 10);
+    const date   = document.getElementById('movDate').value;
+
+    setErr('movSerial', 'movSerialErr', !serial);
+    setErr('movQty',    'movQtyErr',    !qty || qty < 1);
+    setErr('movDate',   'movDateErr',   !date);
+    document.getElementById('movStockErr').classList.remove('show');
+    if (!serial || !qty || qty < 1 || !date) return;
+
+    const now = new Date().toISOString();
+    if (movType === 'in') {
+      if (!stock[serial]) stock[serial] = { qty: 0, lastIn: null, lastOut: null };
+      stock[serial].qty   += qty;
+      stock[serial].lastIn = date;
+      movements.unshift({ id: Date.now(), type: 'in', serial, qty, date, source: 'manual', irNumber: null, createdAt: now });
+      showToast('Stock In — ' + serial + ' +' + qty + ' units.');
+    } else {
+      const cur = stock[serial] ? stock[serial].qty : 0;
+      if (cur < qty) {
+        const el = document.getElementById('movStockErr');
+        el.textContent = 'Insufficient stock. Current: ' + cur + ' unit' + (cur !== 1 ? 's' : '') + '.';
+        el.classList.add('show');
+        return;
+      }
+      stock[serial].qty    -= qty;
+      stock[serial].lastOut = date;
+      movements.unshift({ id: Date.now(), type: 'out', serial, qty, date, source: 'manual', irNumber: null, createdAt: now });
+      showToast('Stock Out — ' + serial + ' −' + qty + ' units.');
+    }
+
+    localStorage.setItem(K.stock,     JSON.stringify(stock));
+    localStorage.setItem(K.movements, JSON.stringify(movements));
+    render();
+    this.reset();
+    document.getElementById('movDate').value = today();
+  });
+
+  // Search & sort
+  document.getElementById('stockSearch').addEventListener('input', function() { stockQ = this.value.trim().toUpperCase(); renderStock(); });
+
+  document.getElementById('stockTable').querySelector('thead').addEventListener('click', function(e) {
+    const th = e.target.closest('th[data-col]');
+    if (!th) return;
+    const col = th.dataset.col;
+    if (stockSort.col === col) stockSort.dir *= -1;
+    else { stockSort.col = col; stockSort.dir = 1; }
+    this.querySelectorAll('th').forEach(t => { t.classList.remove('sorted'); const si = t.querySelector('.si'); if (si) si.textContent = '↕'; });
+    th.classList.add('sorted');
+    th.querySelector('.si').textContent = stockSort.dir === 1 ? '▲' : '▼';
+    renderStock();
+  });
+
+  // Delete
+  function delStock(serial) {
+    if (!confirm('Remove "' + serial + '" from inventory?\n\nMovement history is kept.')) return;
+    delete stock[serial];
+    localStorage.setItem(K.stock, JSON.stringify(stock));
+    render();
+    showToast(serial + ' removed from inventory.');
+  }
+
+  // ── History panel ──────────────────────────────────────
+  function openPanel(serial) {
+    const s = stock[serial];
+    document.getElementById('panelSerial').textContent = serial;
+    document.getElementById('panelQty').textContent    = 'Current stock: ' + (s ? s.qty : 0) + ' unit' + ((s && s.qty !== 1) ? 's' : '');
+
+    const hist = movements.filter(m => m.serial === serial);
+    const el   = document.getElementById('panelHistory');
+
+    if (!hist.length) {
+      el.innerHTML = '<div class="panel-empty">No movement history recorded yet.</div>';
+    } else {
+      el.innerHTML = hist.map(m => {
+        const isIn   = m.type === 'in';
+        const arrow  = isIn ? '+' : '−';
+        const source = m.source === 'request' ? 'Via ' + esc(m.irNumber) : 'Manual';
+        return '<div class="mov-item">' +
+          '<div class="mov-icon ' + m.type + '">' + (isIn ? '&#8679;' : '&#8681;') + '</div>' +
+          '<div class="mov-detail">' +
+            '<div class="mov-type ' + m.type + '">' + (isIn ? 'Stock In' : 'Stock Out') + '</div>' +
+            '<div class="mov-meta">' + fmtDate(m.date) + ' &nbsp;&middot;&nbsp; ' + source + '</div>' +
+          '</div>' +
+          '<div class="mov-qty">' + arrow + m.qty + '</div>' +
+          '</div>';
+      }).join('');
+    }
+
+    document.getElementById('overlay').classList.add('open');
+    document.getElementById('histPanel').classList.add('open');
+  }
+
+  function closePanel() {
+    document.getElementById('overlay').classList.remove('open');
+    document.getElementById('histPanel').classList.remove('open');
+  }
+
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closePanel(); });
+
+  // ── Render ─────────────────────────────────────────────
+  function render() { renderStats(); renderStock(); }
+
+  function renderStats() {
+    const vals  = Object.values(stock);
+    document.getElementById('statSkus').textContent  = Object.keys(stock).length;
+    document.getElementById('statUnits').textContent = vals.reduce((s, v) => s + v.qty, 0);
+    document.getElementById('statLow').textContent   = vals.filter(v => v.qty > 0 && v.qty <= 10).length;
+  }
+
+  function renderStock() {
+    const tbody   = document.getElementById('stockBody');
+    const entries = Object.entries(stock)
+      .map(([serial, d]) => ({ serial, ...d }))
+      .filter(r => !stockQ || r.serial.includes(stockQ));
+
+    document.getElementById('stockCount').textContent = entries.length + ' item' + (entries.length !== 1 ? 's' : '');
+
+    if (!entries.length) {
+      tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#cbd5e0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 3H8a2 2 0 0 0-2 2v2h12V5a2 2 0 0 0-2-2z"/></svg><p>' + (stockQ ? 'No items match your search.' : 'No stock recorded yet.') + '</p></div></td></tr>';
+      return;
+    }
+
+    entries.sort((a, b) => {
+      let va = a[stockSort.col] || '', vb = b[stockSort.col] || '';
+      if (stockSort.col === 'qty') { va = +va; vb = +vb; }
+      return va < vb ? -stockSort.dir : va > vb ? stockSort.dir : 0;
+    });
+
+    tbody.innerHTML = entries.map(r => {
+      const cls = r.qty === 0 ? 'zero' : r.qty >= 100 ? 'high' : r.qty <= 10 ? 'low' : '';
+      return '<tr>' +
+        '<td><span class="serial-link" onclick="openPanel(\'' + esc(r.serial) + '\')">' + esc(r.serial) + '</span></td>' +
+        '<td><span class="qty-pill ' + cls + '">' + r.qty + '</span></td>' +
+        '<td style="color:#718096;font-size:.82rem">' + (r.lastIn  ? fmtDate(r.lastIn)  : '&#8212;') + '</td>' +
+        '<td style="color:#718096;font-size:.82rem">' + (r.lastOut ? fmtDate(r.lastOut) : '&#8212;') + '</td>' +
+        '<td><button class="btn-del" title="Remove" onclick="delStock(\'' + esc(r.serial) + '\')">&#x2715;</button></td>' +
+        '</tr>';
+    }).join('');
+  }
+
+  function setErr(inputId, errId, isErr) { document.getElementById(inputId).classList.toggle('err', isErr); document.getElementById(errId).classList.toggle('show', isErr); }
+  function showToast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove('show'), 3400); }
+  function today()    { return new Date().toISOString().slice(0, 10); }
+  function fmtDate(d) { if (!d) return '—'; const [y,m,day] = d.split('-'); return day+'/'+m+'/'+y; }
+  function esc(s)     { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+</script>
+</body>
+</html>
